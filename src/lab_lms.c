@@ -187,9 +187,24 @@ void my_lms( float * y,	float * x, float * xhat, float * e, int blockSize){
 	// vector lms_state has length blockSize+LAB_LMS_TAPS-1
 	arm_copy_f32(y, &(lms_state[LAB_LMS_TAPS-1]), blockSize);
 
+	// Loop variables
+	int i,j;
 
-	/* Add your LMS code here */
+	// Update xhat
+	for(i=0; i<blockSize; i++) {
+		arm_dot_prod_f32(lms_coeffs, &(lms_state[i]), LAB_LMS_TAPS, &(xhat[i]));
+	}
 
+	// Compute e(n) = x(n) - xhat(n)
+	arm_sub_f32(x, xhat, e, blockSize);
+
+	// Update lms_coeffs
+	for(i=0; i<LAB_LMS_TAPS; i++) {
+		// Perform blockSize iterations at once
+		for(j=0; j<blockSize; j++) {
+			lms_coeffs[i] += 2*lms_mu*lms_state[i + j]*e[j];
+		}
+	}
 
 	// Places the last numTaps-1 of input (y) samples first in state vector lms_state
 	arm_copy_f32( &y[blockSize - (LAB_LMS_TAPS-1)], lms_state, LAB_LMS_TAPS-1);
