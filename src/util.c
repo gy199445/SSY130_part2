@@ -1,22 +1,28 @@
 #include "util.h"
 #include "backend/printfn/printfn.h"
 #include "backend/hw/board.h"
+#define NUM_COLS (7)
 
 void print_vector_f(char * name, float * vals, int_fast32_t len){
 	printf("%s = [", name);
-	int_fast32_t i;
+	int_fast32_t i,ci=0;
 	for(i = 0; i < len; i++){
 		if(i != 0){
 			//Suppress a tab character on the first output
-			printf("\t");
+			printf(" ");
 		}
 
 		printf("%e", *(vals + i));
 		if(i == len - 1){
 			//On the last call, add a ']' symbol to indicate the end of the vector
-			printf("]");
+			printf("];\n");
+		}else{
+			printf(";");
 		}
-		printf(";\n");
+		if (++ci == NUM_COLS){
+			printf("\n");
+			ci =0;
+		}
 	}
 }
 
