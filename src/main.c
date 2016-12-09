@@ -53,10 +53,10 @@
  * 	display 'foo 1.234' and add a newline character to the output. Note that
  * 	only PRINTF_MAX_STRING_SIZE can be printed per printf call and at most
  * 	DEBUG_USART_TX_BUF_LEN characters can be buffered at a time. With the
- * 	default baud rate of 1MBPS around 100000 characters can be printed per
+ * 	default baud rate of 921600 BPS around 100000 characters can be printed per
  * 	second. Be sure to configure the terminal application used on the PC for
  * 	viewing the status messages for;
- * 		- Operation at 1 000 000 baud
+ * 		- Operation at 921600 baud
  * 		- 1 start bit
  * 		- 1 stop bit
  * 		- 8 data bits

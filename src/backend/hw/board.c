@@ -203,22 +203,22 @@ void USART2_IRQHandler(){
 	if(USART_GetITStatus(USART2, USART_IT_RXNE) || USART_GetITStatus(USART2, USART_IT_ORE)){
 		const char data = USART_ReceiveData(USART2);
 		cbuf_write(&usart_rx_cbuf, data);
-
+		//Disable UART echo as this seems to take far too long and we risk overruning an audio interrupt.
 		//Use an incredibly crude method of echo-ing the recieved character to the UART interface
-		if(data > 32 && data < 127){
-			char str[] = "Got 'X' over the UART interface\r\n";
-			str[5] = data;
-			char * dummy = str;
-			while(*dummy){
-				board_usart_write(*dummy++);
-			}
-		}else{
-			char str[] = "Got non-printable character over the UART interface\r\n";
-			char * dummy = str;
-			while(*dummy){
-				board_usart_write(*dummy++);
-			}
-		}
+		// if(data > 32 && data < 127){
+		// 	char str[] = "Got 'X' over the UART interface\r\n";
+		// 	str[5] = data;
+		// 	char * dummy = str;
+		// 	while(*dummy){
+		// 		board_usart_write(*dummy++);
+		// 	}
+		// }else{
+		// 	char str[] = "Got non-printable character over the UART interface\r\n";
+		// 	char * dummy = str;
+		// 	while(*dummy){
+		// 		board_usart_write(*dummy++);
+		// 	}
+	  // }
 	}
 }
 

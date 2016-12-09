@@ -19,19 +19,19 @@
 #if TESTMODE == TEST
 #define LAB_LMS_TAPS  (8)
 #else
-#define 	LAB_LMS_TAPS		(256)
+#define 	LAB_LMS_TAPS		(64)
 #endif
 // Stateful variables for the LMS lab
-arm_lms_instance_f32 lms_s;
 float lms_coeffs[LAB_LMS_TAPS];
 float lms_state[LAB_LMS_TAPS + AUDIO_BLOCKSIZE - 1];
 float lms_mu_state = LAB_LMS_MU_INIT;
 float lms_mu       = LAB_LMS_MU_INIT;
+char pname[] = "h";
 
 // define enum type for different modes of operation
 enum lms_modes {lms_updt, lms_enbl, lms_dsbl } lms_mode;
 enum dist_srces {cos_src, noise_src } dist_src;
-char pname[] = "h";
+enum signal_modes {signal_off, signal_on } signal_mode;
 
 // Function declaration
 void my_lms( float * y,
@@ -46,8 +46,8 @@ void lab_lms_init(void){
 	arm_fill_f32(0.0f, lms_state, NUMEL(lms_state));
   lms_mode = lms_dsbl; // start with disabled mode
   dist_src = noise_src; // start with wide band noise
+	signal_mode = signal_on;
 
-  // arm_lms_init_f32(&lms_s, LAB_LMS_TAPS, lms_coeffs, lms_state, lms_mu, AUDIO_BLOCKSIZE);
 
 #if TESTMODE == NORMAL
 	printf("Usage guide;\n"
@@ -59,7 +59,8 @@ void lab_lms_init(void){
 			"\t'r' - Reset step size to %e and turn off filter updating\n"
 			"\t'+' - Increase step size mu\n"
 			"\t'-' - Decrease step size mu\n"
-			"\t'p' - Prints the filter coefficients h in a format useful for import in Matlab\n", lms_mu);
+			"\t'p' - Prints the filter coefficients h in a format useful for import in Matlab\n"
+			"\t's' - Toggles music signal\n", lms_mu);
 #endif
 #if TESTMODE == TEST
 	float y_data[AUDIO_BLOCKSIZE];
@@ -88,45 +89,45 @@ void lab_lms_init(void){
 }
 
 void lab_lms(void){
-	//Update filter settings
-	char key;
-	if(board_get_usart_char(&key)){
-		switch(key){
-		default:
-			printf("Invalid key pressed.\n");
-			break;
-		case 'd':
-			printf("Filtering disabled, mic signal output to speaker\n");
-			lms_mode = lms_dsbl;
-			break;
-    case 'f':
-    	printf("Filtering enabled, error signal output to speaker\n");
-    	lms_mode = lms_enbl;
-			lms_mu = 0.0f;
-			printf("No updating. Step size mu set to %e\n", 0.0f);
-			break;
-    case 'u':
-    	printf("Filtering and lms update, error signal output to speaker\n");
-    	lms_mode = lms_updt;
-			lms_mu = lms_mu_state;
-			printf("Step size mu set to %e\n", lms_mu);
+  //Update filter settings
+  char key;
+  if(board_get_usart_char(&key)){
+    switch(key){
+    default:
+      printf("Invalid key pressed.\n");
       break;
-		case 'r':
-			lms_mu_state = LAB_LMS_MU_INIT;
-			lms_mu = lms_mu_state;
-			printf("Filtering enabled, error signal output to speaker\n");
-			printf("Step size mu reset to %e\n", lms_mu);
-			break;
-		case '+':
-			lms_mu_state *= LAB_LMS_MU_CHANGE;
-			lms_mu = lms_mu_state;
-			printf("Step size mu increased to %e\n", lms_mu);
-			break;
-		case '-':
-			lms_mu_state *= 1.0f/LAB_LMS_MU_CHANGE;
-			lms_mu = lms_mu_state;
-			printf("Step size mu decreased to %e\n", lms_mu);
-			break;
+    case 'd':
+      printf("Filtering disabled, mic signal output to speaker\n");
+      lms_mode = lms_dsbl;
+      break;
+    case 'f':
+      printf("Filtering enabled, error signal output to speaker\n");
+      lms_mode = lms_enbl;
+      lms_mu = 0.0f;
+      printf("No updating. Step size mu set to %e\n", 0.0f);
+      break;
+    case 'u':
+      printf("Filtering and lms update, error signal output to speaker\n");
+      lms_mode = lms_updt;
+      lms_mu = lms_mu_state;
+      printf("Step size mu set to %e\n", lms_mu);
+      break;
+    case 'r':
+      lms_mu_state = LAB_LMS_MU_INIT;
+      lms_mu = lms_mu_state;
+      printf("Filtering enabled, error signal output to speaker\n");
+      printf("Step size mu reset to %e\n", lms_mu);
+      break;
+    case '+':
+      lms_mu_state *= LAB_LMS_MU_CHANGE;
+      lms_mu = lms_mu_state;
+      printf("Step size mu increased to %e\n", lms_mu);
+      break;
+    case '-':
+      lms_mu_state *= 1.0f/LAB_LMS_MU_CHANGE;
+      lms_mu = lms_mu_state;
+      printf("Step size mu decreased to %e\n", lms_mu);
+      break;
     case 't':
       if (dist_src == cos_src){
         dist_src = noise_src;
@@ -135,41 +136,58 @@ void lab_lms(void){
         dist_src = cos_src;
         printf("Disturbance source set to cosine\n");
       }
-  		break;
-		case 'p':
-		 	print_vector_f(pname, lms_coeffs, LAB_LMS_TAPS);
-			break;
-		}
-	}
+      break;
+    case 'p':
+      print_vector_f(pname, lms_coeffs, LAB_LMS_TAPS);
+      break;
+    case 's':
+      if (signal_mode == signal_off){
+	signal_mode = signal_on;
+	printf("Signal source turned on\n");
+      }else{
+	signal_mode = signal_off;
+	printf("Signal source turned off\n");
+      }
+      break;
+    }
+  }
 
-	float outdata[AUDIO_BLOCKSIZE];
-	float distdata[AUDIO_BLOCKSIZE];
-	float signaldata[AUDIO_BLOCKSIZE];
-	blocks_sources_waveform(signaldata); // Music signal
+  float outdata[AUDIO_BLOCKSIZE];
+  float distdata[AUDIO_BLOCKSIZE];
+  float signaldata[AUDIO_BLOCKSIZE];
+  blocks_sources_waveform(signaldata); // Music signal
   if (dist_src == noise_src){ // wide band noise as disturbance
     blocks_sources_disturbance(distdata);
   } else { // cosine as disturbance
-  blocks_sources_cos(distdata);
+    blocks_sources_cos(distdata);
   };
-  arm_scale_f32(distdata, 0.2f, distdata, AUDIO_BLOCKSIZE); // decrease volume
-	arm_add_f32(distdata,signaldata,outdata,AUDIO_BLOCKSIZE); // add signal and noise
-	blocks_sinks_leftout(outdata); // Send to left channel
-
-	//Update the LMS filter
-	float lms_mic[AUDIO_BLOCKSIZE];
-	blocks_sources_microphone(lms_mic);
-	float lms_output[AUDIO_BLOCKSIZE];
-	float lms_err[AUDIO_BLOCKSIZE];
+  arm_scale_f32(distdata, 0.2f, distdata, AUDIO_BLOCKSIZE);
+  if (signal_mode == signal_on){
+    arm_add_f32(distdata,signaldata,outdata,AUDIO_BLOCKSIZE); // add signal and noise
+    blocks_sinks_leftout(outdata); // Send to left channel
+  }else{
+    blocks_sinks_leftout(distdata); // Send to left channel
+  }
+  //Update the LMS filter
+  // float *lms_input = distdata;
+  float lms_mic[AUDIO_BLOCKSIZE];
+  blocks_sources_microphone(lms_mic);
+  float lms_output[AUDIO_BLOCKSIZE];
+  float lms_err[AUDIO_BLOCKSIZE];
   if ((lms_mode == lms_enbl) || (lms_mode == lms_updt)){
-		 my_lms(distdata, lms_mic, lms_output, lms_err, AUDIO_BLOCKSIZE);
- 		//  arm_lms_f32(&lms_s, distdata, lms_mic, lms_output, lms_err, AUDIO_BLOCKSIZE);
+    my_lms(distdata, lms_mic, lms_output, lms_err, AUDIO_BLOCKSIZE);
     blocks_sinks_rightout(lms_err); // Send cleaned signal to right channel
   }else{
     blocks_sinks_rightout(lms_mic);
   };
 }
 
-void my_lms( float * y,	float * x, float * xhat, float * e, int blockSize){
+void my_lms(
+	    float * y,
+	    float * x,
+	    float * xhat,
+	    float * e,
+	    int blockSize){
 	/*
 	y[] = vector of input signal of length blockSize
 	x[] = vector of "desired" signal of length blockSize
@@ -182,10 +200,10 @@ void my_lms( float * y,	float * x, float * xhat, float * e, int blockSize){
 	lms_mu = the step-length of the LMS filter update.
 	lms_coeffs[] = the vector of the filter coefficients h stored in reverse order
 	*/
-
-	// Copies indata y into lms_state starting from index LAB_LMS_TAPS-1
-	// vector lms_state has length blockSize+LAB_LMS_TAPS-1
-	arm_copy_f32(y, &(lms_state[LAB_LMS_TAPS-1]), blockSize);
+  
+  // Copy indata into lms_state starting from index numTaps-1
+  // pState has length blockSize+numTaps-1
+  arm_copy_f32(y, &(lms_state[LAB_LMS_TAPS-1]), blockSize);
 
 	// Loop variables
 	int i,j;
@@ -206,8 +224,9 @@ void my_lms( float * y,	float * x, float * xhat, float * e, int blockSize){
 		}
 	}
 
-	// Places the last numTaps-1 of input (y) samples first in state vector lms_state
-	arm_copy_f32( &y[blockSize - (LAB_LMS_TAPS-1)], lms_state, LAB_LMS_TAPS-1);
+  // Place last numTaps-1 inpuy (y) samples first in state vector lms_state
+  arm_copy_f32( &y[blockSize - (LAB_LMS_TAPS-1)], lms_state, LAB_LMS_TAPS-1);
 };
+
 
 #endif

@@ -896,7 +896,7 @@ float lp_filter[FILTER_SIZE] = {
 
 float H[FFT_SIZE];
 float Hhp[FFT_SIZE];
-float X[FFT_SIZE]; 
+float X[FFT_SIZE];
 float Y[FFT_SIZE];
 float buffer[FFT_SIZE];
 float buffer2[FFT_SIZE];
